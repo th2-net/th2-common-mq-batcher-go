@@ -17,16 +17,22 @@
 package batcher
 
 import (
-	"encoding/binary"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	proto "github.com/th2-net/th2-common-go/pkg/common/grpc/th2_grpc_common"
 	"github.com/th2-net/th2-common-go/pkg/queue"
 	mq "github.com/th2-net/th2-common-go/pkg/queue/message"
 	"github.com/th2-net/th2-common-mq-batcher-go/pkg/batcher"
+	transport "github.com/th2-net/transport-go/pkg"
+)
+
+const (
+	book     = "book"
+	group    = "group"
+	alias    = "alias"
+	protocol = "protocol"
 )
 
 type rawRouterMock struct {
@@ -85,24 +91,24 @@ func newRawRouterMock(invocations int) *rawRouterMock {
 
 func TestOneMessageSerialization(t *testing.T) {
 	router := newRawRouterMock(1)
-	initialSequence := time.Now().UnixNano()
 	b, err := batcher.NewMessageBatcher(router, batcher.MqMessageBatcherConfig{
 		MqBatcherConfig: batcher.MqBatcherConfig{
-			Book:           "book",
+			Book:           book,
 			FlushMillis:    10000,
-			BatchSizeBytes: 123,
+			BatchSizeBytes: 127,
 		},
-		Protocol: "test",
-		Group:    "group",
+		Protocol: protocol,
+		Group:    group,
 	})
 	if err != nil {
 		t.Fatal("cannot create writer", err)
 	}
-	_, err = b.Send([]byte("data"), batcher.MessageArguments{
-		Alias:     "alias",
+	data := []byte("data")
+	args := batcher.MessageArguments{
+		Alias:     alias,
 		Direction: batcher.IN,
-	})
-	if err != nil {
+	}
+	if err := b.Send(data, args); err != nil {
 		t.Fatal("cannot write data", err)
 	}
 
@@ -112,96 +118,37 @@ func TestOneMessageSerialization(t *testing.T) {
 	assert.Equal(t, 1, len(batches), "unexpected batches count")
 
 	batch := batches[0]
-	assert.Equal(t, 123, len(batch))
-
-	index := 0
-	// batch
-	assert.Equal(t, uint8(50), batch[index], "unexpected batch type")
-	assert.Equal(t, 118, extractLen(batch[index+1:]), "unexpected batch length")
-	index += 5
-
-	// book
-	index += checkString(t, 101, "book", batch, index)
-
-	// group
-	index += checkString(t, 102, "group", batch, index)
-
-	// group list
-	assert.Equal(t, uint8(51), batch[index], "unexpected group list type")
-	assert.Equal(t, 94, extractLen(batch[index+1:]), "unexpected group list length")
-	index += 5
-
-	// message group
-	assert.Equal(t, uint8(40), batch[index], "unexpected message group type")
-	assert.Equal(t, 89, extractLen(batch[index+1:]), "unexpected message group length")
-	index += 5
-
-	// message list
-	assert.Equal(t, uint8(41), batch[index], "unexpected message list type")
-	assert.Equal(t, 84, extractLen(batch[index+1:]), "unexpected message list length")
-	index += 5
-
-	// message
-	assert.Equal(t, uint8(20), batch[index], "unexpected message type")
-	assert.Equal(t, 79, extractLen(batch[index+1:]), "unexpected message length")
-	index += 5
-
-	// msg id
-	index += checkTypeAndLen(t, 10, 51, batch, index)
-
-	// session alias
-	index += checkString(t, 103, "alias", batch, index)
-
-	// direction
-	index += checkByte(t, 104, 1, batch, index)
-
-	// sequence
-	index += checkSequence(t, 105, initialSequence, batch, index)
-
-	// subsequence
-	index += checkTypeAndLen(t, 106, 0, batch, index)
-
-	// timestamp
-	index += checkTypeAndLen(t, 107, 12, batch, index)
-	assert.NotEqual(t, uint64(0), binary.LittleEndian.Uint64(batch[index:]), "seconds is zero")
-	index += 8
-	// skip nanos
-	index += 4
-
-	// metadata
-	index += checkTypeAndLen(t, 11, 0, batch, index)
-
-	// protocol
-	index += checkString(t, 12, "test", batch, index)
-
-	// body
-	index += checkString(t, 21, "data", batch, index)
-
-	assert.Equal(t, len(batch), index)
+	decoder := transport.NewDecoder(batch)
+	msg, groupId, err := decoder.NextMessage()
+	if err != nil {
+		t.Fatal("decoding message failure", err)
+	}
+	assert.Equal(t, 0, groupId)
+	checkMsg(t, msg, args.Alias, args.Direction, args.Metadata, nil, protocol, data)
 
 	b.Close()
 }
 
 func TestOneMessageSerializationAfterClosingBatcher(t *testing.T) {
 	router := newRawRouterMock(1)
-	initialSequence := time.Now().UnixNano()
 	b, err := batcher.NewMessageBatcher(router, batcher.MqMessageBatcherConfig{
 		MqBatcherConfig: batcher.MqBatcherConfig{
-			Book:           "book",
+			Book:           book,
 			FlushMillis:    10000,
 			BatchSizeBytes: 10000,
 		},
-		Protocol: "test",
-		Group:    "group",
+		Protocol: protocol,
+		Group:    group,
 	})
 	if err != nil {
 		t.Fatal("cannot create writer", err)
 	}
-	_, err = b.Send([]byte("data"), batcher.MessageArguments{
-		Alias:     "alias",
+	data := []byte("data")
+	args := batcher.MessageArguments{
+		Alias:     alias,
 		Direction: batcher.IN,
-	})
-	if err != nil {
+	}
+	if err := b.Send(data, args); err != nil {
 		t.Fatal("cannot write data", err)
 	}
 
@@ -213,95 +160,36 @@ func TestOneMessageSerializationAfterClosingBatcher(t *testing.T) {
 	assert.Equal(t, 1, len(batches), "unexpected batches count")
 
 	batch := batches[0]
-	assert.Equal(t, 123, len(batch))
-
-	index := 0
-	// batch
-	assert.Equal(t, uint8(50), batch[index], "unexpected batch type")
-	assert.Equal(t, 118, extractLen(batch[index+1:]), "unexpected batch length")
-	index += 5
-
-	// book
-	index += checkString(t, 101, "book", batch, index)
-
-	// group
-	index += checkString(t, 102, "group", batch, index)
-
-	// group list
-	assert.Equal(t, uint8(51), batch[index], "unexpected group list type")
-	assert.Equal(t, 94, extractLen(batch[index+1:]), "unexpected group list length")
-	index += 5
-
-	// message group
-	assert.Equal(t, uint8(40), batch[index], "unexpected message group type")
-	assert.Equal(t, 89, extractLen(batch[index+1:]), "unexpected message group length")
-	index += 5
-
-	// message list
-	assert.Equal(t, uint8(41), batch[index], "unexpected message list type")
-	assert.Equal(t, 84, extractLen(batch[index+1:]), "unexpected message list length")
-	index += 5
-
-	// message
-	assert.Equal(t, uint8(20), batch[index], "unexpected message type")
-	assert.Equal(t, 79, extractLen(batch[index+1:]), "unexpected message length")
-	index += 5
-
-	// msg id
-	index += checkTypeAndLen(t, 10, 51, batch, index)
-
-	// session alias
-	index += checkString(t, 103, "alias", batch, index)
-
-	// direction
-	index += checkByte(t, 104, 1, batch, index)
-
-	// sequence
-	index += checkSequence(t, 105, initialSequence, batch, index)
-
-	// subsequence
-	index += checkTypeAndLen(t, 106, 0, batch, index)
-
-	// timestamp
-	index += checkTypeAndLen(t, 107, 12, batch, index)
-	assert.NotEqual(t, uint64(0), binary.LittleEndian.Uint64(batch[index:]), "seconds is zero")
-	index += 8
-	// skip nanos
-	index += 4
-
-	// metadata
-	index += checkTypeAndLen(t, 11, 0, batch, index)
-
-	// protocol
-	index += checkString(t, 12, "test", batch, index)
-
-	// body
-	index += checkString(t, 21, "data", batch, index)
-
-	assert.Equal(t, len(batch), index)
+	decoder := transport.NewDecoder(batch)
+	msg, groupId, err := decoder.NextMessage()
+	if err != nil {
+		t.Fatal("decoding message failure", err)
+	}
+	assert.Equal(t, 0, groupId)
+	checkMsg(t, msg, args.Alias, args.Direction, args.Metadata, nil, protocol, data)
 }
 
 func TestOneMessageSerializationAfterTimeout(t *testing.T) {
 	router := newRawRouterMock(1)
-	initialSequence := time.Now().UnixNano()
 	b, err := batcher.NewMessageBatcher(router, batcher.MqMessageBatcherConfig{
 		MqBatcherConfig: batcher.MqBatcherConfig{
-			Book:           "book",
+			Book:           book,
 			FlushMillis:    100,
 			BatchSizeBytes: 10000,
 		},
-		Protocol: "test",
-		Group:    "group",
+		Protocol: protocol,
+		Group:    group,
 	})
 	if err != nil {
 		t.Fatal("cannot create writer", err)
 	}
 
-	_, err = b.Send([]byte("data"), batcher.MessageArguments{
-		Alias:     "alias",
+	data := []byte("data")
+	args := batcher.MessageArguments{
+		Alias:     alias,
 		Direction: batcher.IN,
-	})
-	if err != nil {
+	}
+	if err := b.Send(data, args); err != nil {
 		t.Fatal("cannot write data", err)
 	}
 
@@ -314,100 +202,39 @@ func TestOneMessageSerializationAfterTimeout(t *testing.T) {
 	assert.Equal(t, 1, len(batches), "unexpected batches count")
 
 	batch := batches[0]
-	assert.Equal(t, 123, len(batch))
-
-	index := 0
-	// batch
-	assert.Equal(t, uint8(50), batch[index], "unexpected batch type")
-	assert.Equal(t, 118, extractLen(batch[index+1:]), "unexpected batch length")
-	index += 5
-
-	// book
-	index += checkString(t, 101, "book", batch, index)
-
-	// group
-	index += checkString(t, 102, "group", batch, index)
-
-	// group list
-	assert.Equal(t, uint8(51), batch[index], "unexpected group list type")
-	assert.Equal(t, 94, extractLen(batch[index+1:]), "unexpected group list length")
-	index += 5
-
-	// message group
-	assert.Equal(t, uint8(40), batch[index], "unexpected message group type")
-	assert.Equal(t, 89, extractLen(batch[index+1:]), "unexpected message group length")
-	index += 5
-
-	// message list
-	assert.Equal(t, uint8(41), batch[index], "unexpected message list type")
-	assert.Equal(t, 84, extractLen(batch[index+1:]), "unexpected message list length")
-	index += 5
-
-	// message
-	assert.Equal(t, uint8(20), batch[index], "unexpected message type")
-	assert.Equal(t, 79, extractLen(batch[index+1:]), "unexpected message length")
-	index += 5
-
-	// msg id
-	index += checkTypeAndLen(t, 10, 51, batch, index)
-
-	// session alias
-	index += checkString(t, 103, "alias", batch, index)
-
-	// direction
-	index += checkByte(t, 104, 1, batch, index)
-
-	// sequence
-	index += checkSequence(t, 105, initialSequence, batch, index)
-
-	// subsequence
-	index += checkTypeAndLen(t, 106, 0, batch, index)
-
-	// timestamp
-	index += checkTypeAndLen(t, 107, 12, batch, index)
-	assert.NotEqual(t, uint64(0), binary.LittleEndian.Uint64(batch[index:]), "seconds is zero")
-	index += 8
-	// skip nanos
-	index += 4
-
-	// metadata
-	index += checkTypeAndLen(t, 11, 0, batch, index)
-
-	// protocol
-	index += checkString(t, 12, "test", batch, index)
-
-	// body
-	index += checkString(t, 21, "data", batch, index)
-
-	assert.Equal(t, len(batch), index)
+	decoder := transport.NewDecoder(batch)
+	msg, groupId, err := decoder.NextMessage()
+	if err != nil {
+		t.Fatal("decoding message failure", err)
+	}
+	assert.Equal(t, 0, groupId)
+	checkMsg(t, msg, args.Alias, args.Direction, args.Metadata, nil, protocol, data)
 
 	b.Close()
-
-	router.Wait()
 }
 
 func TestOneMessageWithMetadataSerialization(t *testing.T) {
 	router := newRawRouterMock(1)
-	initialSequence := time.Now().UnixNano()
 	b, err := batcher.NewMessageBatcher(router, batcher.MqMessageBatcherConfig{
 		MqBatcherConfig: batcher.MqBatcherConfig{
-			Book:           "book",
+			Book:           book,
 			FlushMillis:    10000,
 			BatchSizeBytes: 156,
 		},
-		Protocol: "test",
-		Group:    "group",
+		Protocol: protocol,
+		Group:    group,
 	})
 	if err != nil {
 		t.Fatal("cannot create writer", err)
 	}
 	metadata := map[string]string{"test-property": "test-value"}
-	_, err = b.Send([]byte("data"), batcher.MessageArguments{
-		Alias:     "alias",
+	data := []byte("data")
+	args := batcher.MessageArguments{
+		Alias:     alias,
 		Direction: batcher.IN,
 		Metadata:  metadata,
-	})
-	if err != nil {
+	}
+	if err := b.Send(data, args); err != nil {
 		t.Fatal("cannot write data", err)
 	}
 
@@ -417,97 +244,38 @@ func TestOneMessageWithMetadataSerialization(t *testing.T) {
 	assert.Equal(t, 1, len(batches), "unexpected batches count")
 
 	batch := batches[0]
-	assert.Equal(t, 156, len(batch))
-
-	index := 0
-	// batch
-	assert.Equal(t, uint8(50), batch[index], "unexpected batch type")
-	assert.Equal(t, 151, extractLen(batch[index+1:]), "unexpected batch length")
-	index += 5
-
-	// book
-	index += checkString(t, 101, "book", batch, index)
-
-	// group
-	index += checkString(t, 102, "group", batch, index)
-
-	// group list
-	assert.Equal(t, uint8(51), batch[index], "unexpected group list type")
-	assert.Equal(t, 127, extractLen(batch[index+1:]), "unexpected group list length")
-	index += 5
-
-	// message group
-	assert.Equal(t, uint8(40), batch[index], "unexpected message group type")
-	assert.Equal(t, 122, extractLen(batch[index+1:]), "unexpected message group length")
-	index += 5
-
-	// message list
-	assert.Equal(t, uint8(41), batch[index], "unexpected message list type")
-	assert.Equal(t, 117, extractLen(batch[index+1:]), "unexpected message list length")
-	index += 5
-
-	// message
-	assert.Equal(t, uint8(20), batch[index], "unexpected message type")
-	assert.Equal(t, 112, extractLen(batch[index+1:]), "unexpected message length")
-	index += 5
-
-	// msg id
-	index += checkTypeAndLen(t, 10, 51, batch, index)
-
-	// session alias
-	index += checkString(t, 103, "alias", batch, index)
-
-	// direction
-	index += checkByte(t, 104, 1, batch, index)
-
-	// sequence
-	index += checkSequence(t, 105, initialSequence, batch, index)
-
-	// subsequence
-	index += checkTypeAndLen(t, 106, 0, batch, index)
-
-	// timestamp
-	index += checkTypeAndLen(t, 107, 12, batch, index)
-	assert.NotEqual(t, uint64(0), binary.LittleEndian.Uint64(batch[index:]), "seconds is zero")
-	index += 8
-	// skip nanos
-	index += 4
-
-	// metadata
-	index += checkMetadata(t, 11, metadata, batch, index)
-
-	// protocol
-	index += checkString(t, 12, "test", batch, index)
-
-	// body
-	index += checkString(t, 21, "data", batch, index)
-
-	assert.Equal(t, len(batch), index)
+	decoder := transport.NewDecoder(batch)
+	msg, groupId, err := decoder.NextMessage()
+	if err != nil {
+		t.Fatal("decoding message failure", err)
+	}
+	assert.Equal(t, 0, groupId)
+	checkMsg(t, msg, args.Alias, args.Direction, args.Metadata, nil, protocol, data)
 
 	b.Close()
 }
 
 func TestOneMessageWithProtocolSerialization(t *testing.T) {
 	router := newRawRouterMock(1)
-	initialSequence := time.Now().UnixNano()
 	b, err := batcher.NewMessageBatcher(router, batcher.MqMessageBatcherConfig{
 		MqBatcherConfig: batcher.MqBatcherConfig{
-			Book:           "book",
+			Book:           book,
 			FlushMillis:    10000,
 			BatchSizeBytes: 124,
 		},
-		Protocol: "test",
-		Group:    "group",
+		Protocol: protocol,
+		Group:    group,
 	})
 	if err != nil {
 		t.Fatal("cannot create writer", err)
 	}
-	_, err = b.Send([]byte("data"), batcher.MessageArguments{
-		Alias:     "alias",
+	data := []byte("data")
+	args := batcher.MessageArguments{
+		Alias:     alias,
 		Direction: batcher.IN,
 		Protocol:  "testA",
-	})
-	if err != nil {
+	}
+	if err := b.Send(data, args); err != nil {
 		t.Fatal("cannot write data", err)
 	}
 
@@ -517,123 +285,32 @@ func TestOneMessageWithProtocolSerialization(t *testing.T) {
 	assert.Equal(t, 1, len(batches), "unexpected batches count")
 
 	batch := batches[0]
-	assert.Equal(t, 124, len(batch))
-
-	index := 0
-	// batch
-	assert.Equal(t, uint8(50), batch[index], "unexpected batch type")
-	assert.Equal(t, 119, extractLen(batch[index+1:]), "unexpected batch length")
-	index += 5
-
-	// book
-	index += checkString(t, 101, "book", batch, index)
-
-	// group
-	index += checkString(t, 102, "group", batch, index)
-
-	// group list
-	assert.Equal(t, uint8(51), batch[index], "unexpected group list type")
-	assert.Equal(t, 95, extractLen(batch[index+1:]), "unexpected group list length")
-	index += 5
-
-	// message group
-	assert.Equal(t, uint8(40), batch[index], "unexpected message group type")
-	assert.Equal(t, 90, extractLen(batch[index+1:]), "unexpected message group length")
-	index += 5
-
-	// message list
-	assert.Equal(t, uint8(41), batch[index], "unexpected message list type")
-	assert.Equal(t, 85, extractLen(batch[index+1:]), "unexpected message list length")
-	index += 5
-
-	// message
-	assert.Equal(t, uint8(20), batch[index], "unexpected message type")
-	assert.Equal(t, 80, extractLen(batch[index+1:]), "unexpected message length")
-	index += 5
-
-	// msg id
-	index += checkTypeAndLen(t, 10, 51, batch, index)
-
-	// session alias
-	index += checkString(t, 103, "alias", batch, index)
-
-	// direction
-	index += checkByte(t, 104, 1, batch, index)
-
-	// sequence
-	index += checkSequence(t, 105, initialSequence, batch, index)
-
-	// subsequence
-	index += checkTypeAndLen(t, 106, 0, batch, index)
-
-	// timestamp
-	index += checkTypeAndLen(t, 107, 12, batch, index)
-	assert.NotEqual(t, uint64(0), binary.LittleEndian.Uint64(batch[index:]), "seconds is zero")
-	index += 8
-	// skip nanos
-	index += 4
-
-	// metadata
-	index += checkMetadata(t, 11, nil, batch, index)
-
-	// protocol
-	index += checkString(t, 12, "testA", batch, index)
-
-	// body
-	index += checkString(t, 21, "data", batch, index)
-
-	assert.Equal(t, len(batch), index)
+	decoder := transport.NewDecoder(batch)
+	msg, groupId, err := decoder.NextMessage()
+	if err != nil {
+		t.Fatal("decoding message failure", err)
+	}
+	assert.Equal(t, 0, groupId)
+	checkMsg(t, msg, args.Alias, args.Direction, args.Metadata, nil, args.Protocol, data)
 
 	b.Close()
 }
 
-func checkSequence(t *testing.T, codec uint8, value int64, src []byte, startIndex int) int {
-	startIndex += checkTypeAndLen(t, codec, 8, src, startIndex)
-	assert.Less(t, value, int64(binary.LittleEndian.Uint64(src[startIndex:])), "unexpected value")
-	return 5 + 8
-}
+func checkMsg(t *testing.T, msg any, alias string, direction byte, metadata map[string]string, eventId *transport.EventID, protocol string, body []byte) {
+	if assert.IsType(t, &transport.RawMessage{}, msg) {
+		rawMsg := msg.(*transport.RawMessage)
 
-func checkMetadata(t *testing.T, codec uint8, value map[string]string, src []byte, startIndex int) int {
-	length := 0
-	for k, v := range value {
-		// type: 1, length: 4, value: len(<...>)
-		length += len(k) + 5
-		length += len(v) + 5
+		id := rawMsg.MessageId
+		assert.Equal(t, alias, id.SessionAlias)
+		assert.Equal(t, direction, id.Direction)
+		assert.Less(t, int64(0), id.Sequence)
+		assert.Nil(t, id.Subsequence)
+		assert.NotNil(t, id.Timestamp)
+
+		assert.Equal(t, metadata, rawMsg.Metadata)
+		assert.Equal(t, eventId, rawMsg.EventID)
+		assert.Equal(t, protocol, rawMsg.Protocol)
+
+		assert.Equal(t, body, rawMsg.Body)
 	}
-
-	startIndex += checkTypeAndLen(t, codec, length, src, startIndex)
-	for k, v := range value {
-		startIndex += checkString(t, 2, k, src, startIndex)
-		startIndex += checkString(t, 2, v, src, startIndex)
-	}
-
-	return 5 + length
-}
-
-func checkString(t *testing.T, codec uint8, value string, src []byte, startIndex int) int {
-	startIndex += checkTypeAndLen(t, codec, len(value), src, startIndex)
-	assert.Equal(t, value, string(src[startIndex:startIndex+len(value)]), "unexpected value")
-	return 5 + len(value)
-}
-
-func checkByte(t *testing.T, codec uint8, value byte, src []byte, startIndex int) int {
-	startIndex += checkTypeAndLen(t, codec, 1, src, startIndex)
-	assert.Equal(t, value, src[startIndex], "unexpected value")
-	return 5 + 1
-}
-
-func checkLong(t *testing.T, codec uint8, value int64, src []byte, startIndex int) int {
-	startIndex += checkTypeAndLen(t, codec, 8, src, startIndex)
-	assert.Equal(t, value, int64(binary.LittleEndian.Uint64(src[startIndex:])), "unexpected value")
-	return 5 + 8
-}
-
-func checkTypeAndLen(t *testing.T, codec uint8, len int, src []byte, startIndex int) int {
-	assert.Equal(t, codec, src[startIndex], "unexpected type")
-	assert.Equal(t, len, extractLen(src[startIndex+1:]), "unexpected length")
-	return 5
-}
-
-func extractLen(src []byte) int {
-	return int(binary.LittleEndian.Uint32(src))
 }

@@ -18,7 +18,7 @@ package batcher
 
 import "time"
 
-type Direction uint8
+type Direction = byte
 
 const (
 	UNKNOWN Direction = iota
@@ -30,12 +30,6 @@ type MqMessageBatcherConfig struct {
 	MqBatcherConfig
 	Group    string
 	Protocol string
-}
-
-type container struct {
-	data     []byte
-	args     MessageArguments
-	overhead int
 }
 
 type stream struct {

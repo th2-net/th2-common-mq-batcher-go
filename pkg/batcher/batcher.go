@@ -33,5 +33,5 @@ type MqBatcherConfig struct {
 
 type MqBatcher[A any] interface {
 	io.Closer
-	Send(data []byte, args A) (int, error)
+	Send(data []byte, args A) error
 }
