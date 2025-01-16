@@ -13,7 +13,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Build sources
-        run: make build
       - name: Check sources
         run: make run-test
+      - name: Build sources
+        run: make build

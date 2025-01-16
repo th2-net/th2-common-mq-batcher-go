@@ -45,14 +45,14 @@ type stream struct {
 
 type sequenceProvider map[stream]int64
 
-func (p *sequenceProvider) nextSeq(alias string, direction Direction) int64 {
+func (p sequenceProvider) nextSeq(alias string, direction Direction) int64 {
 	key := stream{alias, direction}
-	value, exist := (*p)[key]
+	value, exist := p[key]
 	if exist {
 		value += 1
 	} else {
 		value = time.Now().UnixNano()
 	}
-	(*p)[key] = value
+	p[key] = value
 	return value
 }
