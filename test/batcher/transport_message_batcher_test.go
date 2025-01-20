@@ -106,7 +106,7 @@ func TestOneMessageSerialization(t *testing.T) {
 	data := []byte("data")
 	args := batcher.MessageArguments{
 		Alias:     alias,
-		Direction: batcher.IN,
+		Direction: batcher.In,
 	}
 	if err := b.Send(data, args); err != nil {
 		t.Fatal("cannot write data", err)
@@ -146,7 +146,7 @@ func TestOneMessageSerializationAfterClosingBatcher(t *testing.T) {
 	data := []byte("data")
 	args := batcher.MessageArguments{
 		Alias:     alias,
-		Direction: batcher.IN,
+		Direction: batcher.In,
 	}
 	if err := b.Send(data, args); err != nil {
 		t.Fatal("cannot write data", err)
@@ -187,7 +187,7 @@ func TestOneMessageSerializationAfterTimeout(t *testing.T) {
 	data := []byte("data")
 	args := batcher.MessageArguments{
 		Alias:     alias,
-		Direction: batcher.IN,
+		Direction: batcher.In,
 	}
 	if err := b.Send(data, args); err != nil {
 		t.Fatal("cannot write data", err)
@@ -231,7 +231,7 @@ func TestOneMessageWithMetadataSerialization(t *testing.T) {
 	data := []byte("data")
 	args := batcher.MessageArguments{
 		Alias:     alias,
-		Direction: batcher.IN,
+		Direction: batcher.In,
 		Metadata:  metadata,
 	}
 	if err := b.Send(data, args); err != nil {
@@ -272,7 +272,7 @@ func TestOneMessageWithProtocolSerialization(t *testing.T) {
 	data := []byte("data")
 	args := batcher.MessageArguments{
 		Alias:     alias,
-		Direction: batcher.IN,
+		Direction: batcher.In,
 		Protocol:  "testA",
 	}
 	if err := b.Send(data, args); err != nil {

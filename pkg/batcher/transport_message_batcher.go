@@ -25,17 +25,17 @@ import (
 	transport "github.com/th2-net/transport-go/pkg"
 )
 
-type protocol = string
+type Protocol = string
 
 const (
-	th2_pin_attribute string = "transport-group"
+	th2TransportProtocolAttribute = "transport-group"
 )
 
 type MessageArguments struct {
 	Metadata  map[string]string
 	Alias     string
 	Direction Direction
-	Protocol  protocol
+	Protocol  Protocol
 }
 
 type messageBatcher struct {
@@ -51,7 +51,7 @@ type messageBatcher struct {
 	router   message.Router
 	book     string
 	group    string
-	protocol protocol
+	protocol Protocol
 
 	done chan bool
 }
@@ -59,19 +59,24 @@ type messageBatcher struct {
 func NewMessageBatcher(router message.Router, cfg MqMessageBatcherConfig) (MqBatcher[MessageArguments], error) {
 	flushTimeout := cfg.FlushMillis
 	if flushTimeout <= 0 {
-		flushTimeout = DEFAULT_FLUSH_TIME
+		flushTimeout = DefaultFlushTime
 	}
 
 	maxBatchSizeBytes := cfg.BatchSizeBytes
 	if maxBatchSizeBytes <= 0 {
-		maxBatchSizeBytes = DEFAULT_BATCH_SIZE
+		maxBatchSizeBytes = DefaultBatchSize
+	}
+
+	channelSize := cfg.ChannelSize
+	if channelSize <= 0 {
+		channelSize = DefaultChanelSize
 	}
 
 	flushDuration := time.Duration(flushTimeout) * time.Millisecond
 
 	batcher := messageBatcher{
 		encoder:        transport.NewEncoder(make([]byte, maxBatchSizeBytes)),
-		pipe:           make(chan transport.RawMessage, 1),
+		pipe:           make(chan transport.RawMessage, channelSize),
 		done:           make(chan bool, 1),
 		seqProvider:    sequenceProvider{},
 		batchSizeBytes: int(maxBatchSizeBytes),
@@ -81,7 +86,6 @@ func NewMessageBatcher(router message.Router, cfg MqMessageBatcherConfig) (MqBat
 		group:          cfg.Group,
 		book:           cfg.Book,
 	}
-	batcher.reset() // reset flushing time for first message
 	go batcher.flushingRoutine()
 	return &batcher, nil
 }
@@ -164,17 +168,13 @@ func (b *messageBatcher) write(msg transport.RawMessage) {
 	b.groupIndex++
 }
 
-func (b *messageBatcher) completeBatch() []byte {
-	return b.encoder.CompleteBatch(b.group, b.book)
-}
-
 func (b *messageBatcher) flush() {
 	if b.groupIndex == 0 {
 		log.Trace().Msg("Flushing has skipped because buffer is empty")
 		return
 	}
 	log.Trace().Int("messageCount", b.groupIndex).Msg("Store messages")
-	if err := b.router.SendRawAll(b.encoder.CompleteBatch(b.group, b.book), th2_pin_attribute); err != nil {
+	if err := b.router.SendRawAll(b.encoder.CompleteBatch(b.group, b.book), th2TransportProtocolAttribute); err != nil {
 		log.Panic().Err(err).Msg("flushing message failure")
 	}
 

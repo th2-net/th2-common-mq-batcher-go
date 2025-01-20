@@ -21,9 +21,9 @@ import "time"
 type Direction = byte
 
 const (
-	UNKNOWN Direction = iota
-	IN
-	OUT
+	Unknown Direction = iota
+	In
+	Out
 )
 
 type MqMessageBatcherConfig struct {

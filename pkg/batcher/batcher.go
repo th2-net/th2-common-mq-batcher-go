@@ -21,11 +21,13 @@ import (
 )
 
 const (
-	DEFAULT_BATCH_SIZE uint   = 1024 * 1024 // 1MB
-	DEFAULT_FLUSH_TIME uint64 = 1000        // 1s
+	DefaultBatchSize  uint   = 1024 * 1024 // 1MB
+	DefaultFlushTime  uint64 = 1000        // 1s
+	DefaultChanelSize int    = 1
 )
 
 type MqBatcherConfig struct {
+	ChannelSize    int
 	BatchSizeBytes uint
 	FlushMillis    uint64
 	Book           string
