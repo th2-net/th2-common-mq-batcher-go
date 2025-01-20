@@ -1,0 +1,19 @@
+name: Check library state
+
+on: push
+
+jobs:
+  check:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Check sources
+        run: make run-test
+      - name: Build sources
+        run: make build
