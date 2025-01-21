@@ -60,6 +60,7 @@ func (m *rawRouterMock) SendRawAll(data []byte, attributes ...string) error {
 	m.wait.Done()
 	return nil
 }
+
 func (m *rawRouterMock) SubscribeAll(listener mq.Listener, attributes ...string) (queue.Monitor, error) {
 	return nil, nil
 }
@@ -106,7 +107,7 @@ func TestOneMessageSerialization(t *testing.T) {
 	data := []byte("data")
 	args := batcher.MessageArguments{
 		Alias:     alias,
-		Direction: batcher.In,
+		Direction: batcher.InDirection,
 	}
 	if err := b.Send(data, args); err != nil {
 		t.Fatal("cannot write data", err)
@@ -146,7 +147,7 @@ func TestOneMessageSerializationAfterClosingBatcher(t *testing.T) {
 	data := []byte("data")
 	args := batcher.MessageArguments{
 		Alias:     alias,
-		Direction: batcher.In,
+		Direction: batcher.InDirection,
 	}
 	if err := b.Send(data, args); err != nil {
 		t.Fatal("cannot write data", err)
@@ -187,7 +188,7 @@ func TestOneMessageSerializationAfterTimeout(t *testing.T) {
 	data := []byte("data")
 	args := batcher.MessageArguments{
 		Alias:     alias,
-		Direction: batcher.In,
+		Direction: batcher.InDirection,
 	}
 	if err := b.Send(data, args); err != nil {
 		t.Fatal("cannot write data", err)
@@ -219,7 +220,7 @@ func TestOneMessageWithMetadataSerialization(t *testing.T) {
 		MqBatcherConfig: batcher.MqBatcherConfig{
 			Book:           book,
 			FlushMillis:    10000,
-			BatchSizeBytes: 156,
+			BatchSizeBytes: 160,
 		},
 		Protocol: protocol,
 		Group:    group,
@@ -231,7 +232,7 @@ func TestOneMessageWithMetadataSerialization(t *testing.T) {
 	data := []byte("data")
 	args := batcher.MessageArguments{
 		Alias:     alias,
-		Direction: batcher.In,
+		Direction: batcher.InDirection,
 		Metadata:  metadata,
 	}
 	if err := b.Send(data, args); err != nil {
@@ -272,7 +273,7 @@ func TestOneMessageWithProtocolSerialization(t *testing.T) {
 	data := []byte("data")
 	args := batcher.MessageArguments{
 		Alias:     alias,
-		Direction: batcher.In,
+		Direction: batcher.InDirection,
 		Protocol:  "testA",
 	}
 	if err := b.Send(data, args); err != nil {

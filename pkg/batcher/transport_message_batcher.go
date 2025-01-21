@@ -97,11 +97,11 @@ func (b *messageBatcher) Send(data []byte, args MessageArguments) error {
 	}
 
 	if dataLength > int(b.batchSizeBytes) {
-		return fmt.Errorf("too large message of data %d, max %d", dataLength, b.batchSizeBytes)
+		return fmt.Errorf("too large message data %d, max %d", dataLength, b.batchSizeBytes)
 
 	}
 
-	b.pipe <- transport.RawMessage{
+	msg := transport.RawMessage{
 		MessageId: transport.MessageId{
 			SessionAlias: args.Alias,
 			Direction:    args.Direction,
@@ -111,6 +111,13 @@ func (b *messageBatcher) Send(data []byte, args MessageArguments) error {
 		Body:     data,
 	}
 
+	msgSize := transport.SizeEncodedRaw(b.group, b.book, msg)
+	if msgSize > int(b.batchSizeBytes) {
+		return fmt.Errorf("too large encoded message %d, max %d", msgSize, b.batchSizeBytes)
+
+	}
+
+	b.pipe <- msg
 	return nil
 }
 
@@ -126,9 +133,9 @@ func (b *messageBatcher) flushingRoutine() {
 	defer func() {
 		b.done <- true
 	}()
-	for {
-		timer := time.After(b.flushTimeout)
 
+	timer := time.After(b.flushTimeout)
+	for {
 		select {
 		case item, ok := <-b.pipe:
 			if !ok {
@@ -143,6 +150,7 @@ func (b *messageBatcher) flushingRoutine() {
 			if b.encoder.SizeAfterEncodeRaw(b.group, b.book, item, b.groupIndex) > b.batchSizeBytes {
 				log.Debug().Msg("Flushing messages by buffer size")
 				b.flush()
+				newSize = b.encoder.SizeAfterEncodeRaw(b.group, b.book, item, b.groupIndex)
 			}
 
 			b.write(item)
@@ -153,6 +161,7 @@ func (b *messageBatcher) flushingRoutine() {
 		case <-timer:
 			log.Debug().Msg("Flushing messages by timer is over")
 			b.flush()
+			timer = time.After(b.flushTimeout)
 		}
 	}
 
