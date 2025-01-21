@@ -139,7 +139,7 @@ func (b *messageBatcher) flushingRoutine() {
 				return
 			}
 			newSize := b.encoder.SizeAfterEncodeRaw(b.group, b.book, item, b.groupIndex)
-			log.Trace().Msgf("Size after encoding: %d", newSize)
+			log.Trace().Int("newSize", newSize).Int("currentSize", b.batchSizeBytes).Msg("approximate batch size computed")
 			if b.encoder.SizeAfterEncodeRaw(b.group, b.book, item, b.groupIndex) > b.batchSizeBytes {
 				log.Debug().Msg("Flushing messages by buffer size")
 				b.flush()
