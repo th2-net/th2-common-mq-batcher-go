@@ -9,11 +9,12 @@ Provides structures for batching th2-common's entities. Each batch is sent when 
 ### Configuration
 
 The Batcher configuration include the options
-* *Book* __(required)__ - th2 book name.
-* *Group* __(required)__ - th2 session group name.
-* *Protocol* __(optional)__ - default value for protocol. If it isn't specified and you don't specify `batcher.MessageArguments.Protocol` passed into the `MqBatcher[MessageArguments].Send` method, messages will be send with empty protocol.
-* *BatchSizeBytes* __(1048576 by default)__ - max batch size. 
-* *FlushMillis* __(1000 by default)__ - max time interval in milliseconds between sending.
+
+* _Book_ __(required)__ - th2 book name.
+* _Group_ __(required)__ - th2 session group name.
+* _Protocol_ __(optional)__ - default value for protocol. If it isn't specified and you don't specify `batcher.MessageArguments.Protocol` passed into the `MqBatcher[MessageArguments].Send` method, messages will be send with empty protocol.
+* _BatchSizeBytes_ __(1048576 by default)__ - max batch size.
+* _FlushMillis_ __(1000 by default)__ - max time interval in milliseconds between sending.
 
 ```go
 import (

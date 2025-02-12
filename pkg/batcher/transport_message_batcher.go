@@ -20,7 +20,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
+	"github.com/th2-net/th2-common-go/pkg/log"
 	"github.com/th2-net/th2-common-go/pkg/queue/message"
 	transport "github.com/th2-net/transport-go/pkg"
 )
@@ -39,6 +40,7 @@ type MessageArguments struct {
 }
 
 type messageBatcher struct {
+	logger     zerolog.Logger
 	encoder    transport.Encoder
 	groupIndex int
 
@@ -75,6 +77,7 @@ func NewMessageBatcher(router message.Router, cfg MqMessageBatcherConfig) (MqBat
 	flushDuration := time.Duration(flushTimeout) * time.Millisecond
 
 	batcher := messageBatcher{
+		logger:         log.ForComponent(fmt.Sprintf("batcher-b(%s)-g(%s)", cfg.Book, cfg.Group)),
 		encoder:        transport.NewEncoder(make([]byte, maxBatchSizeBytes)),
 		pipe:           make(chan transport.RawMessage, channelSize),
 		done:           make(chan bool, 1),
@@ -122,14 +125,14 @@ func (b *messageBatcher) Send(data []byte, args MessageArguments) error {
 }
 
 func (b *messageBatcher) Close() error {
-	log.Info().Msg("Closing message batcher")
+	b.logger.Info().Msg("Closing message batcher")
 	close(b.pipe)
 	<-b.done
 	return nil
 }
 
 func (b *messageBatcher) flushingRoutine() {
-	log.Info().Msg("Flushing routine started")
+	b.logger.Info().Msg("Flushing routine started")
 	defer func() {
 		b.done <- true
 	}()
@@ -139,27 +142,27 @@ func (b *messageBatcher) flushingRoutine() {
 		select {
 		case item, ok := <-b.pipe:
 			if !ok {
-				log.Debug().Msg("Flushing messages by pipe complete")
+				b.logger.Debug().Msg("Flushing messages by pipe complete")
 				b.flush()
 
-				log.Info().Msg("Flushing routine stopped")
+				b.logger.Info().Msg("Flushing routine stopped")
 				return
 			}
 			newSize := b.encoder.SizeAfterEncodeRaw(b.group, b.book, item, b.groupIndex)
-			log.Trace().Int("newSize", newSize).Int("currentSize", b.batchSizeBytes).Msg("approximate batch size computed")
+			b.logger.Trace().Int("newSize", newSize).Int("currentSize", b.batchSizeBytes).Msg("approximate batch size computed")
 			if b.encoder.SizeAfterEncodeRaw(b.group, b.book, item, b.groupIndex) > b.batchSizeBytes {
-				log.Debug().Msg("Flushing messages by buffer size")
+				b.logger.Debug().Msg("Flushing messages by buffer size")
 				b.flush()
 				newSize = b.encoder.SizeAfterEncodeRaw(b.group, b.book, item, b.groupIndex)
 			}
 
 			b.write(item)
 			if newSize >= b.batchSizeBytes {
-				log.Debug().Msg("Flushing messages by buffer is full")
+				b.logger.Debug().Msg("Flushing messages by buffer is full")
 				b.flush()
 			}
 		case <-timer:
-			log.Debug().Msg("Flushing messages by timer is over")
+			b.logger.Debug().Msg("Flushing messages by timer is over")
 			b.flush()
 			timer = time.After(b.flushTimeout)
 		}
@@ -179,19 +182,19 @@ func (b *messageBatcher) write(msg transport.RawMessage) {
 
 func (b *messageBatcher) flush() {
 	if b.groupIndex == 0 {
-		log.Trace().Msg("Flushing has skipped because buffer is empty")
+		b.logger.Trace().Msg("Flushing has skipped because buffer is empty")
 		return
 	}
-	log.Trace().Int("messageCount", b.groupIndex).Msg("Store messages")
+	b.logger.Trace().Int("messageCount", b.groupIndex).Msg("Store messages")
 	if err := b.router.SendRawAll(b.encoder.CompleteBatch(b.group, b.book), th2TransportProtocolAttribute); err != nil {
-		log.Panic().Err(err).Msg("flushing message failure")
+		b.logger.Panic().Err(err).Msg("flushing message failure")
 	}
 
 	b.reset()
 }
 
 func (b *messageBatcher) reset() {
-	log.Trace().Msg("Resetting state")
+	b.logger.Trace().Msg("Resetting state")
 
 	b.encoder.Reset()
 	b.groupIndex = 0
