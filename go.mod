@@ -1,6 +1,6 @@
 module github.com/th2-net/th2-common-mq-batcher-go
 
-go 1.23.0
+go 1.21.0
 
 require (
 	github.com/rs/zerolog v1.33.0
