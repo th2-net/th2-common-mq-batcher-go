@@ -21,8 +21,8 @@ github.com/th2-net/th2-common-go v0.3.0 h1:kVD88FuMH9aLOeJJmUiyx0QjJaz3gnTFl3rUc
 github.com/th2-net/th2-common-go v0.3.0/go.mod h1:XuSIqyj2+3KUWXtbDMbS+8D/pcWp42+xm7DWKBUhQUA=
 github.com/th2-net/th2-grpc-common-go v0.0.1 h1:Wx/u8yb6UinTNVVT4XoTr1dOM0nUP3Rop4KlF+IZE9U=
 github.com/th2-net/th2-grpc-common-go v0.0.1/go.mod h1:MmWGanS+urhYgXFuPA6j/NvAcnpxUQepzkDV5Vh+96g=
-github.com/th2-net/transport-go v0.0.2-0.20250121104533-0892039bb84b h1:tV/Cuz7aEiuEiXzivUy+c6vUtNA6/OC2JLwXWkgttb4=
-github.com/th2-net/transport-go v0.0.2-0.20250121104533-0892039bb84b/go.mod h1:6dH4bSPeNaTFmOfsrfRvw/dae+Uuue3khtV5ltyqG+g=
+github.com/th2-net/transport-go v0.0.2 h1:+GJMbJ2ah647UKsFETkMWiVdC00iu1WpeW/RtzHEpy4=
+github.com/th2-net/transport-go v0.0.2/go.mod h1:6dH4bSPeNaTFmOfsrfRvw/dae+Uuue3khtV5ltyqG+g=
 golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.6.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.12.0 h1:CM0HF96J0hcLAwsHPJZjfdNzs0gftsLfgKt57wWHJ0o=

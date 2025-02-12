@@ -6,7 +6,7 @@ require (
 	github.com/rs/zerolog v1.33.0
 	github.com/stretchr/testify v1.10.0
 	github.com/th2-net/th2-common-go v0.3.0
-	github.com/th2-net/transport-go v0.0.2-0.20250121104533-0892039bb84b
+	github.com/th2-net/transport-go v0.0.2
 )
 
 require (
