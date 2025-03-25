@@ -3,7 +3,7 @@ module github.com/th2-net/th2-common-mq-batcher-go
 go 1.21.0
 
 require (
-	github.com/rs/zerolog v1.33.0
+	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.10.0
 	github.com/th2-net/th2-common-go v0.3.0
 	github.com/th2-net/transport-go v0.0.2
