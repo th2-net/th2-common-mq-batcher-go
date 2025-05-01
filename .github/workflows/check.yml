@@ -1,12 +1,10 @@
 name: Check library state
 
-on: 
-  - push
-  - pull_request
+on: pull_request
 
 jobs:
   check:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
